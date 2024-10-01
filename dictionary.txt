@@ -1,7 +1,9 @@
 be
 and
 of
+is
 a
+an
 in
 to
 have
@@ -148,6 +150,7 @@ family
 own
 out
 leave
+hello
 put
 old
 while
@@ -602,13 +605,11 @@ choose
 cause
 hair
 look
-point  “What is the point of all this?
-
+point 
 century
 evidence
 window 
-difficult  “Sometimes, life can be difficult.”
-
+difficult 
 listen
 soon 
 culture 
@@ -646,18 +647,15 @@ population
 well
 call
 economy
-medical -“She needs medical assistance.”
-
+medical
 hospital
 church 
-close -“Please close the door.”
-
+close
 thousand
 risk
 current
 fire
-future  -“The future is full of hope.”
-
+future
 wrong
 involve
 defense
