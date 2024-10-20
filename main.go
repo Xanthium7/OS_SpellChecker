@@ -138,51 +138,59 @@ func correctSpelling(text string) string {
 
 func findClosestMatch(word string) string {
 	log.Printf("Finding closest match for: %s", word)
+
+	// Remove trailing punctuation
+	word = strings.TrimRight(word, ".!?,:;")
+
 	if dictionary.search(word) {
 		log.Printf("Word '%s' found in dictionary", word)
 		return word
 	}
 
-	// Check for words with edit distance 1
 	candidates := []string{}
 
-	// Deletions
-	for i := 0; i < len(word); i++ {
-		candidate := word[:i] + word[i+1:]
-		if dictionary.search(candidate) {
-			candidates = append(candidates, candidate)
-		}
-	}
-
-	// Substitutions
-	for i := 0; i < len(word); i++ {
-		for ch := 'a'; ch <= 'z'; ch++ {
-			candidate := word[:i] + string(ch) + word[i+1:]
+	// Check for edit distance 1 and 2
+	for distance := 1; distance <= 2; distance++ {
+		// Deletions
+		for i := 0; i < len(word); i++ {
+			candidate := word[:i] + word[i+1:]
 			if dictionary.search(candidate) {
 				candidates = append(candidates, candidate)
 			}
 		}
-	}
 
-	// Insertions
-	for i := 0; i <= len(word); i++ {
-		for ch := 'a'; ch <= 'z'; ch++ {
-			candidate := word[:i] + string(ch) + word[i:]
-			if dictionary.search(candidate) {
-				candidates = append(candidates, candidate)
-			}
-		}
-	}
-
-	// Check for words with edit distance 2
-	if len(candidates) == 0 {
-		for i := 0; i < len(word)-1; i++ {
-			for j := i + 1; j < len(word); j++ {
-				candidate := word[:i] + string(word[j]) + word[i+1:j] + string(word[i]) + word[j+1:]
+		// Substitutions
+		for i := 0; i < len(word); i++ {
+			for ch := 'a'; ch <= 'z'; ch++ {
+				candidate := word[:i] + string(ch) + word[i+1:]
 				if dictionary.search(candidate) {
 					candidates = append(candidates, candidate)
 				}
 			}
+		}
+
+		// Insertions
+		for i := 0; i <= len(word); i++ {
+			for ch := 'a'; ch <= 'z'; ch++ {
+				candidate := word[:i] + string(ch) + word[i:]
+				if dictionary.search(candidate) {
+					candidates = append(candidates, candidate)
+				}
+			}
+		}
+
+		// Transpositions (for edit distance 2)
+		if distance == 2 {
+			for i := 0; i < len(word)-1; i++ {
+				candidate := word[:i] + string(word[i+1]) + string(word[i]) + word[i+2:]
+				if dictionary.search(candidate) {
+					candidates = append(candidates, candidate)
+				}
+			}
+		}
+
+		if len(candidates) > 0 {
+			break // Stop if we found candidates
 		}
 	}
 
@@ -195,7 +203,6 @@ func findClosestMatch(word string) string {
 	log.Printf("No match found for '%s'", word)
 	return word // If no match found, return the original word
 }
-
 func getClipboardText() string {
 	openClipboard.Call(0)
 	defer closeClipboard.Call()
