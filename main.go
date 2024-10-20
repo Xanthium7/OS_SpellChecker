@@ -149,48 +149,11 @@ func findClosestMatch(word string) string {
 
 	candidates := []string{}
 
-	// Check for edit distance 1 and 2
-	for distance := 1; distance <= 2; distance++ {
-		// Deletions
-		for i := 0; i < len(word); i++ {
-			candidate := word[:i] + word[i+1:]
-			if dictionary.search(candidate) {
-				candidates = append(candidates, candidate)
-			}
-		}
-
-		// Substitutions
-		for i := 0; i < len(word); i++ {
-			for ch := 'a'; ch <= 'z'; ch++ {
-				candidate := word[:i] + string(ch) + word[i+1:]
-				if dictionary.search(candidate) {
-					candidates = append(candidates, candidate)
-				}
-			}
-		}
-
-		// Insertions
-		for i := 0; i <= len(word); i++ {
-			for ch := 'a'; ch <= 'z'; ch++ {
-				candidate := word[:i] + string(ch) + word[i:]
-				if dictionary.search(candidate) {
-					candidates = append(candidates, candidate)
-				}
-			}
-		}
-
-		// Transpositions (for edit distance 2)
-		if distance == 2 {
-			for i := 0; i < len(word)-1; i++ {
-				candidate := word[:i] + string(word[i+1]) + string(word[i]) + word[i+2:]
-				if dictionary.search(candidate) {
-					candidates = append(candidates, candidate)
-				}
-			}
-		}
-
+	// Check for edit distances up to 3
+	for distance := 1; distance <= 3; distance++ {
+		candidates = append(candidates, findCandidates(word, distance)...)
 		if len(candidates) > 0 {
-			break // Stop if we found candidates
+			break
 		}
 	}
 
@@ -203,6 +166,76 @@ func findClosestMatch(word string) string {
 	log.Printf("No match found for '%s'", word)
 	return word // If no match found, return the original word
 }
+
+func findCandidates(word string, maxDistance int) []string {
+	candidates := []string{}
+	queue := []struct {
+		word     string
+		distance int
+	}{{word, 0}}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		if current.distance > maxDistance {
+			continue
+		}
+
+		if dictionary.search(current.word) {
+			candidates = append(candidates, current.word)
+			continue
+		}
+
+		if current.distance == maxDistance {
+			continue
+		}
+
+		// Generate all possible edits
+		for i := 0; i <= len(current.word); i++ {
+			// Deletions
+			if i < len(current.word) {
+				newWord := current.word[:i] + current.word[i+1:]
+				queue = append(queue, struct {
+					word     string
+					distance int
+				}{newWord, current.distance + 1})
+			}
+
+			// Insertions
+			for ch := 'a'; ch <= 'z'; ch++ {
+				newWord := current.word[:i] + string(ch) + current.word[i:]
+				queue = append(queue, struct {
+					word     string
+					distance int
+				}{newWord, current.distance + 1})
+			}
+
+			// Substitutions
+			if i < len(current.word) {
+				for ch := 'a'; ch <= 'z'; ch++ {
+					newWord := current.word[:i] + string(ch) + current.word[i+1:]
+					queue = append(queue, struct {
+						word     string
+						distance int
+					}{newWord, current.distance + 1})
+				}
+			}
+
+			// Transpositions
+			if i < len(current.word)-1 {
+				newWord := current.word[:i] + string(current.word[i+1]) + string(current.word[i]) + current.word[i+2:]
+				queue = append(queue, struct {
+					word     string
+					distance int
+				}{newWord, current.distance + 1})
+			}
+		}
+	}
+
+	return candidates
+}
+
 func getClipboardText() string {
 	openClipboard.Call(0)
 	defer closeClipboard.Call()
