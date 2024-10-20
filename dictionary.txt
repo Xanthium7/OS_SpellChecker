@@ -63,6 +63,7 @@ some
 me
 people
 take
+jump
 out
 into
 just
@@ -888,6 +889,7 @@ since
 claim
 note
 remove
+
 manager
 help
 close
