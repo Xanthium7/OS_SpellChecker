@@ -84,6 +84,22 @@ func loadDictionary(filePath string) {
 }
 ```
 
+### Spell Checking
+When the user clicks "Check Clipboard Spelling," the program retrieves the clipboard text and splits it into words.<br ></br> For each word, the program searches the Trie to see if it's present in the dictionary. <br ></br> If the word is not found, it suggests the closest match (by checking edit distance and possible corrections).
+
+```go
+func checkSpelling() {
+    text := getClipboardText()
+    if text == "" {
+        return
+    }
+    correctedText := correctSpelling(text)
+    setClipboardText(correctedText)
+}
+
+```
+
+#### The Trie allows for fast word lookups and efficient storage of a large number of words, making it ideal for spell-checking applications.<br ></br> It ensures that searching for a word takes O(length of word) time, making it much faster than scanning through a list of words.
 
 ## Upgrade
 
