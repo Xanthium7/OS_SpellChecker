@@ -43,7 +43,7 @@ func (t *Trie) insert(word string) {
 ```
 
 ## Searching for Words
-When checking if a word exists, the program traverses the Trie character by character.<br ></br> If any character of the word is missing in the Trie, the search fails,<br ></br> and the word is considered misspelled. If it reaches the last character and the isEnd flag is true, the word is valid.
+When checking if a word exists, the program traverses the Trie character by character.<br ></br> If any character of the word is missing in the Trie, the search fails,<br ></br> and the word is considered misspelled . If it reaches the last character and the isEnd flag is true, the word is valid.
 
 ## Upgrade
 
