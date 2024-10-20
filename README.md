@@ -25,7 +25,7 @@ type TrieNode struct {
 }
 ```
 
-## Inserting Words
+### Inserting Words
 When you load words from the dictionary file, each word is inserted into the Trie character by character. <br ></br> If a character doesn't already have a corresponding child node,  <br ></br>a new one is created. The isEnd flag is set to true when the final character of the word is inserted, indicating the end of a valid word.
 
 ```go
@@ -42,8 +42,48 @@ func (t *Trie) insert(word string) {
 
 ```
 
-## Searching for Words
+### Searching for Words
 When checking if a word exists, the program traverses the Trie character by character.<br ></br> If any character of the word is missing in the Trie, the search fails,<br ></br> and the word is considered misspelled . If it reaches the last character and the isEnd flag is true, the word is valid.
+
+
+```go
+func (t *Trie) search(word string) bool {
+    node := t.root
+    for _, ch := range word {
+        if _, exists := node.children[ch]; !exists {
+            return false
+        }
+        node = node.children[ch]
+    }
+    return node.isEnd
+}
+```
+
+## How its used?
+
+### Dictionary Loading
+When the program starts, it loads words from the dictionary.txt file into the Trie using the insert() function.<br ></br> Each word is broken down into characters and inserted into the Trie.
+
+
+```go
+func loadDictionary(filePath string) {
+    dictionary = newTrie()
+    file, err := os.Open(filePath)
+    if err != nil {
+        log.Fatalf("Failed to open dictionary file: %v", err)
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        dictionary.insert(strings.ToLower(scanner.Text()))
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Failed to read dictionary file: %v", err)
+    }
+}
+```
+
 
 ## Upgrade
 
