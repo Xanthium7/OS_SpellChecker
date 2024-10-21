@@ -11,6 +11,9 @@ This project is a simple spell checker that reads the clipboard content, checks 
 
 ## TRIE YEAH!
 
+![image](https://github.com/user-attachments/assets/163d6662-d0e4-4657-8cc3-ed69645142ed)
+
+
 A Trie is a tree-like data structure used to store a dynamic set or associative array where the keys are usually strings. It provides efficient search operations, making it ideal for tasks like spell checking.
 
 ### **TrieNode Structure**
