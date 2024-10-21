@@ -6,7 +6,7 @@ This project is a simple spell checker that reads the clipboard content, checks 
 
 - Reads clipboard content
 - Checks for spelling mistakes using a dictionary
-- Updates clipboard with corrected text
+- Updates clipboard with corrected text if the word available in dicitonary
 
 
 ## TRIE YEAH!
