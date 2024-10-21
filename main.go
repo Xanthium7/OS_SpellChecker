@@ -92,6 +92,7 @@ func loadDictionary(filePath string) {
 
 func main() {
 	loadDictionary("dictionary.txt")
+	// loadDictionary("big_dic.txt")
 	systray.Run(onReady, onExit)
 }
 

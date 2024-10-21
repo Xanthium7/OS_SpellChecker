@@ -105,4 +105,5 @@ func checkSpelling() {
 
 ## Upgrade
 
-- more the words in the dicitonary the better
+- Expand the Dictionary:<br></br>Add  QUALITY COMMON words to your dictionary.txt file to improve the accuracy of the spell checker.<br></br>
+
