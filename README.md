@@ -19,10 +19,12 @@ Each node (`TrieNode`) holds:
 - A boolean flag (`isEnd`) that indicates whether the current node marks the end of a valid word in the dictionary.
 
 ```go
+
 type TrieNode struct {
     children map[rune]*TrieNode
     isEnd    bool
 }
+
 ```
 
 ### Inserting Words
