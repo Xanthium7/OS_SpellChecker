@@ -87,7 +87,7 @@ func loadDictionary(filePath string) {
 ```
 
 ### Spell Checking
-When the user clicks "Check Clipboard Spelling," the program retrieves the clipboard text and splits it into words.<br ></br> For each word, the program searches the Trie to see if it's present in the dictionary. <br ></br> If the word is not found, it suggests the closest match (by checking edit distance and possible corrections).
+When the user clicks "Check Clipboard Spelling" the program retrieves the clipboard text and splits it into words.<br ></br> For each word, the program searches the Trie to see if it's present in the dictionary. <br ></br> If the word is not found, it suggests the closest match (by checking edit distance and possible corrections).
 
 ```go
 func checkSpelling() {
