@@ -636,7 +636,7 @@ func setClipboardText(text string) {
 // Get a simple icon for the system tray
 func getIcon() []byte {
 	// Update the path to your converted icon file (e.g. favicon.ico or favicon.png)
-	iconPath := "icon.ico"
+	iconPath := "icon1.ico"
 	iconData, err := os.ReadFile(iconPath)
 	if err != nil {
 		log.Printf("Failed to load icon from %s: %v", iconPath, err)
