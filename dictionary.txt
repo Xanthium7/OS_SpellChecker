@@ -81,6 +81,7 @@ taking
 took
 taken
 jump
+jumps
 jumping
 jumped
 out
@@ -183,6 +184,7 @@ tries
 trying
 tried
 last
+lazy
 ask
 asking
 asked
@@ -196,6 +198,7 @@ feeling
 felt
 three
 state
+definitely
 never
 become
 becomes
@@ -953,6 +956,9 @@ support
 simply
 third
 technology
+then
+brown
+the
 catch
 catches
 catching
