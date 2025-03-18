@@ -291,6 +291,15 @@ func loadBuiltInDictionary() {
 ## Areas for Improvement
 
 1. **Context-aware corrections**: Consider surrounding words for better corrections
+
+        example:
+        before: Teh quick bown fox jumps ovr teh lazie dog whiel the goverment definately trys to improove thier educaton systm and recieve more infromation abuot how peeple uses there technolgy.
+
+        after: The quick down for jumps or the lazy dog while the government definitely try to improve their education system and receive more information about how people uses there technology.
+
+        [bown -> brown, but was corrected to down, ovr -> over, but was corrected to or]
+        cases like thes...
+
 2. **Learning capabilities**: Improve suggestions based on user choices
 3. **Domain-specific dictionaries**: Support for specialized terminology
 4. **Language detection**: Auto-detect and apply the appropriate dictionary
