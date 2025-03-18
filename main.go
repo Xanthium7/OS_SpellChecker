@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"syscall"
 	"unicode"
@@ -30,7 +31,9 @@ const (
 	VK_S     = 0x53 // Virtual key code for 'S'
 
 	// Maximum candidates to consider to avoid performance issues
-	MAX_CANDIDATES = 5
+	MAX_CANDIDATES = 10
+	// Maximum distance to consider for corrections
+	MAX_EDIT_DISTANCE = 2
 )
 
 // TrieNode represents a node in the Trie
@@ -79,25 +82,86 @@ func (t *Trie) search(word string) bool {
 	return node.isEnd
 }
 
+// WordFrequency stores word frequency information
+var WordFrequency map[string]int
+
 func loadDictionary(filePath string) {
 	dictionary = newTrie()
+	WordFrequency = make(map[string]int)
+
 	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("Failed to open dictionary file: %v", err)
+		log.Printf("Failed to open dictionary file %s: %v", filePath, err)
+		// Try to use a built-in fallback dictionary if the file is not found
+		loadBuiltInDictionary()
+		return
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	wordCount := 0
 	for scanner.Scan() {
-		dictionary.insert(strings.ToLower(scanner.Text()))
+		word := strings.TrimSpace(scanner.Text())
+		if word != "" {
+			word = strings.ToLower(word)
+			dictionary.insert(word)
+			WordFrequency[word] = 1000 - wordCount // Higher frequency for words at the start of the dictionary
+			wordCount++
+		}
 	}
+
 	if err := scanner.Err(); err != nil {
-		log.Fatalf("Failed to read dictionary file: %v", err)
+		log.Printf("Error reading dictionary file: %v", err)
+	}
+
+	// If dictionary is too small, add built-in common words
+	if wordCount < 100 {
+		log.Printf("Dictionary loaded only %d words, adding built-in dictionary", wordCount)
+		loadBuiltInDictionary()
+	}
+
+	log.Printf("Loaded %d words into the dictionary", len(WordFrequency))
+}
+
+// Load built-in dictionary with common English words
+func loadBuiltInDictionary() {
+	commonWords := []string{
+		"the", "is", "a", "an", "and", "are", "as", "at", "be", "but", "by",
+		"for", "if", "in", "into", "it", "no", "not", "of", "on", "or", "such",
+		"that", "their", "then", "there", "these", "they", "this", "to", "was",
+		"will", "with", "he", "she", "they", "them", "we", "us", "our", "you",
+		"your", "him", "his", "her", "its", "my", "me", "mine", "sentence",
+		"typos", "check", "spell", "checker", "some", "test", "have", "has", "had",
+		"do", "does", "did", "can", "could", "would", "should", "may", "might",
+		"must", "shall", "will", "from", "about", "like", "know", "think", "see",
+		"come", "go", "get", "make", "say", "take", "find", "give", "tell", "work",
+		"call", "try", "ask", "need", "feel", "become", "leave", "put", "mean", "keep",
+		"let", "begin", "seem", "help", "talk", "turn", "start", "show", "hear", "play",
+		"run", "move", "live", "happen", "stand", "lose", "pay", "meet", "include", "continue",
+		"set", "learn", "change", "lead", "understand", "watch", "follow", "stop", "create",
+		"speak", "read", "allow", "add", "spend", "grow", "open", "walk", "win", "offer",
+		"remember", "appear", "buy", "wait", "serve", "die", "send", "expect", "build", "stay",
+		"fall", "cut", "reach", "kill", "remain",
+	}
+
+	weight := 5000 // Give high priority to these common words
+	for _, word := range commonWords {
+		if !dictionary.search(word) {
+			dictionary.insert(word)
+			WordFrequency[word] = weight
+			weight-- // Slightly reduce weight for each subsequent word
+		}
 	}
 }
 
 func main() {
+	// Configure logging for better debugging
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.Println("Starting spell checker application")
+
+	// Load the dictionary
 	loadDictionary("dictionary.txt")
+
 	// Register hotkey (Ctrl+Alt+S)
 	go func() {
 		registerHotKey.Call(0, 1, MOD_CTRL|MOD_ALT, VK_S)
@@ -150,6 +214,7 @@ func checkSpelling() {
 type Candidate struct {
 	word     string
 	distance int
+	score    int // Higher score = better match
 }
 
 func correctSpelling(text string) string {
@@ -193,7 +258,7 @@ func correctSpelling(text string) string {
 
 		// Extract suffix punctuation
 		for i := len(cleanWord) - 1; i >= 0; i-- {
-			if !unicode.IsLetter(rune(cleanWord[i])) && !unicode.IsNumber(rune(cleanWord[i])) {
+			if !unicode.IsLetter(rune(cleanWord[i])) && !unicode.IsNumber(rune(cleanWord[i])) && cleanWord[i] != '\'' {
 				suffix = string(cleanWord[i]) + suffix
 				cleanWord = cleanWord[:i]
 			} else {
@@ -201,8 +266,8 @@ func correctSpelling(text string) string {
 			}
 		}
 
-		// Skip correcting if the word is empty, a number, or very short
-		if len(cleanWord) <= 1 || isNumber(cleanWord) {
+		// Skip correcting if the word is empty, a number, or very short (1-2 chars)
+		if len(cleanWord) <= 2 || isNumber(cleanWord) {
 			result.WriteString(word)
 			lastPos = wordPos + len(word)
 			continue
@@ -271,160 +336,129 @@ func findClosestMatch(word string) string {
 		return word
 	}
 
-	bestCandidate := word
-	bestDistance := len(word) // Initialize with worst possible distance
+	// Generate candidates with edit distances 1 and 2
+	candidates := []Candidate{}
 
-	// Try edit distance 1 and 2
-	for distance := 1; distance <= 2; distance++ {
-		candidates := findCandidatesWithDistance(word, distance)
-		if len(candidates) > 0 {
-			// Find the candidate with the shortest word length
-			for _, candidate := range candidates {
-				// Prefer shorter words as they're often more common
-				if candidate.distance < bestDistance ||
-					(candidate.distance == bestDistance && len(candidate.word) < len(bestCandidate)) {
-					bestDistance = candidate.distance
-					bestCandidate = candidate.word
-				}
-			}
-			break
-		}
+	// Try edit distance 1 first
+	candidates = append(candidates, findCandidatesWithDistance(word, 1)...)
+
+	// If we don't have enough good candidates, try edit distance 2
+	if len(candidates) < 3 {
+		candidates = append(candidates, findCandidatesWithDistance(word, 2)...)
 	}
 
-	if bestCandidate != word {
-		log.Printf("Corrected '%s' to '%s'", word, bestCandidate)
-	} else {
+	if len(candidates) == 0 {
 		log.Printf("No match found for '%s'", word)
+		return word
 	}
 
-	return bestCandidate
-}
-
-// Calculate Levenshtein distance between two strings
-func levenshteinDistance(s, t string) int {
-	m := len(s)
-	n := len(t)
-	d := make([][]int, m+1)
-	for i := range d {
-		d[i] = make([]int, n+1)
-	}
-
-	for i := 0; i <= m; i++ {
-		d[i][0] = i
-	}
-	for j := 0; j <= n; j++ {
-		d[0][j] = j
-	}
-
-	for j := 1; j <= n; j++ {
-		for i := 1; i <= m; i++ {
-			if s[i-1] == t[j-1] {
-				d[i][j] = d[i-1][j-1]
-			} else {
-				min := d[i-1][j]
-				if d[i][j-1] < min {
-					min = d[i][j-1]
-				}
-				if d[i-1][j-1] < min {
-					min = d[i-1][j-1]
-				}
-				d[i][j] = min + 1
-			}
+	// Sort candidates by score (higher is better)
+	sort.Slice(candidates, func(i, j int) bool {
+		// First priority: lower edit distance
+		if candidates[i].distance != candidates[j].distance {
+			return candidates[i].distance < candidates[j].distance
 		}
-	}
 
-	return d[m][n]
+		// Second priority: word frequency/score
+		return candidates[i].score > candidates[j].score
+	})
+
+	bestCandidate := candidates[0].word
+	log.Printf("Corrected '%s' to '%s' (score: %d)", word, bestCandidate, candidates[0].score)
+	return bestCandidate
 }
 
 func findCandidatesWithDistance(word string, maxDistance int) []Candidate {
 	candidates := []Candidate{}
+	wordLen := len(word)
 
-	// Try deletions
-	for i := 0; i < len(word); i++ {
-		newWord := word[:i] + word[i+1:]
-		if dictionary.search(newWord) {
-			candidates = append(candidates, Candidate{newWord, 1})
-			if len(candidates) >= MAX_CANDIDATES {
-				return candidates
-			}
+	// 1. Try deletions (edit distance 1)
+	for i := 0; i < wordLen; i++ {
+		deletion := word[:i] + word[i+1:]
+		if dictionary.search(deletion) {
+			score := getWordScore(deletion, wordLen-1)
+			candidates = append(candidates, Candidate{deletion, 1, score})
 		}
 	}
 
-	// Try transpositions
-	for i := 0; i < len(word)-1; i++ {
-		newWord := word[:i] + string(word[i+1]) + string(word[i]) + word[i+2:]
-		if dictionary.search(newWord) {
-			candidates = append(candidates, Candidate{newWord, 1})
-			if len(candidates) >= MAX_CANDIDATES {
-				return candidates
-			}
+	// 2. Try transpositions (edit distance 1)
+	for i := 0; i < wordLen-1; i++ {
+		transposition := word[:i] + string(word[i+1]) + string(word[i]) + word[i+2:]
+		if dictionary.search(transposition) {
+			score := getWordScore(transposition, wordLen)
+			candidates = append(candidates, Candidate{transposition, 1, score})
 		}
 	}
 
-	// Try substitutions
-	for i := 0; i < len(word); i++ {
+	// 3. Try substitutions (edit distance 1)
+	for i := 0; i < wordLen; i++ {
 		for c := 'a'; c <= 'z'; c++ {
-			newWord := word[:i] + string(c) + word[i+1:]
-			if dictionary.search(newWord) {
-				candidates = append(candidates, Candidate{newWord, 1})
-				if len(candidates) >= MAX_CANDIDATES {
-					return candidates
+			if c != rune(word[i]) {
+				substitution := word[:i] + string(c) + word[i+1:]
+				if dictionary.search(substitution) {
+					score := getWordScore(substitution, wordLen)
+					candidates = append(candidates, Candidate{substitution, 1, score})
 				}
 			}
 		}
 	}
 
-	// Try insertions
-	for i := 0; i <= len(word); i++ {
+	// 4. Try insertions (edit distance 1)
+	for i := 0; i <= wordLen; i++ {
 		for c := 'a'; c <= 'z'; c++ {
-			newWord := word[:i] + string(c) + word[i:]
-			if dictionary.search(newWord) {
-				candidates = append(candidates, Candidate{newWord, 1})
-				if len(candidates) >= MAX_CANDIDATES {
-					return candidates
-				}
+			insertion := word[:i] + string(c) + word[i:]
+			if dictionary.search(insertion) {
+				score := getWordScore(insertion, wordLen+1)
+				candidates = append(candidates, Candidate{insertion, 1, score})
 			}
 		}
 	}
 
-	// If we're allowed edit distance 2, try another level of edits
-	// but only if we still need more candidates
-	if maxDistance >= 2 && len(candidates) < MAX_CANDIDATES/2 {
-		// Get all words with edit distance 1
-		edits1 := []string{}
+	// Limit candidates before trying edit distance 2
+	if len(candidates) > MAX_CANDIDATES/2 {
+		// Sort by score and take the top half
+		sort.Slice(candidates, func(i, j int) bool {
+			return candidates[i].score > candidates[j].score
+		})
+		candidates = candidates[:MAX_CANDIDATES/2]
+		return candidates
+	}
 
-		// Add deletions
-		for i := 0; i < len(word); i++ {
-			edits1 = append(edits1, word[:i]+word[i+1:])
-		}
+	// If we need edit distance 2, we do a second round of edits
+	if maxDistance >= 2 {
+		// For each potential edit1 word (whether in dictionary or not)
+		edits1 := generateAllEdits1(word)
 
-		// Add transpositions
-		for i := 0; i < len(word)-1; i++ {
-			edits1 = append(edits1, word[:i]+string(word[i+1])+string(word[i])+word[i+2:])
-		}
-
-		// For each edit1 word, try another edit
 		for _, edit1 := range edits1 {
-			// Skip if we already found this word
-			alreadyFound := false
-			for _, c := range candidates {
-				if c.word == edit1 {
-					alreadyFound = true
-					break
-				}
-			}
-			if alreadyFound {
+			// Skip if this is already a candidate
+			if containsWord(candidates, edit1) {
 				continue
 			}
 
-			// Try another edit
+			// Try another set of edits on this edit1 word
 			for i := 0; i < len(edit1); i++ {
-				for c := 'a'; c <= 'z'; c++ {
-					newWord := edit1[:i] + string(c) + edit1[i+1:]
-					if dictionary.search(newWord) && !contains(candidates, newWord) {
-						candidates = append(candidates, Candidate{newWord, 2})
+				// Deletions
+				if i < len(edit1) {
+					edit2 := edit1[:i] + edit1[i+1:]
+					if dictionary.search(edit2) && !containsWord(candidates, edit2) {
+						score := getWordScore(edit2, len(edit2))
+						candidates = append(candidates, Candidate{edit2, 2, score})
 						if len(candidates) >= MAX_CANDIDATES {
 							return candidates
+						}
+					}
+				}
+
+				// Substitutions (limited to improve performance)
+				if i < len(edit1) {
+					for c := 'a'; c <= 'z'; c += 2 { // Skip some letters for performance
+						edit2 := edit1[:i] + string(c) + edit1[i+1:]
+						if dictionary.search(edit2) && !containsWord(candidates, edit2) {
+							score := getWordScore(edit2, len(edit2))
+							candidates = append(candidates, Candidate{edit2, 2, score})
+							if len(candidates) >= MAX_CANDIDATES {
+								return candidates
+							}
 						}
 					}
 				}
@@ -435,7 +469,79 @@ func findCandidatesWithDistance(word string, maxDistance int) []Candidate {
 	return candidates
 }
 
-func contains(candidates []Candidate, word string) bool {
+// Generate all possible edits at distance 1
+func generateAllEdits1(word string) []string {
+	edits := []string{}
+
+	// Deletions
+	for i := 0; i < len(word); i++ {
+		edits = append(edits, word[:i]+word[i+1:])
+	}
+
+	// Transpositions
+	for i := 0; i < len(word)-1; i++ {
+		edits = append(edits, word[:i]+string(word[i+1])+string(word[i])+word[i+2:])
+	}
+
+	// Limited substitutions (for performance)
+	for i := 0; i < len(word); i++ {
+		for c := 'a'; c <= 'z'; c += 3 { // Only use some letters
+			edits = append(edits, word[:i]+string(c)+word[i+1:])
+		}
+	}
+
+	return edits
+}
+
+// Calculate word score based on frequency and similarity
+func getWordScore(word string, originalLen int) int {
+	// Base score from frequency dictionary
+	score := WordFrequency[word]
+	if score == 0 {
+		score = 1 // Minimum score
+	}
+
+	// Adjust score based on length similarity
+	lenDiff := abs(len(word) - originalLen)
+	if lenDiff == 0 {
+		score += 100 // Bonus for same length
+	} else {
+		score -= lenDiff * 10 // Penalty for different length
+	}
+
+	// Prefer shorter words when score is similar
+	score -= len(word)
+
+	// Common words should get a boost
+	commonWords := map[string]bool{
+		"the": true, "is": true, "a": true, "an": true, "and": true,
+		"are": true, "as": true, "at": true, "be": true, "but": true,
+		"by": true, "for": true, "if": true, "in": true, "into": true,
+		"it": true, "no": true, "not": true, "of": true, "on": true,
+		"or": true, "such": true, "that": true, "their": true, "then": true,
+		"there": true, "these": true, "they": true, "this": true, "to": true,
+		"was": true, "will": true, "with": true, "he": true, "she": true,
+		"some": true, "test": true, "have": true, "has": true, "had": true,
+		"do": true, "does": true, "did": true, "can": true, "could": true,
+		"would": true, "should": true, "may": true, "might": true,
+		"sentence": true, "typo": true, "check": true, "spell": true, "checker": true,
+	}
+
+	if commonWords[word] {
+		score += 200 // Big boost for very common words
+	}
+
+	return score
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+func containsWord(candidates []Candidate, word string) bool {
 	for _, c := range candidates {
 		if c.word == word {
 			return true

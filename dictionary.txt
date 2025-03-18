@@ -333,12 +333,14 @@ around
 parent
 only
 stop
+typos
 face
 anything
 create
 public
 already
 speak
+spell
 others
 read
 level
@@ -696,7 +698,8 @@ bed
 order
 author
 fill
-represent
+repre
+sentence
 focus
 foreign
 drop
@@ -866,7 +869,8 @@ song
 example
 democratic
 crazy
-check
+
+checker
 environment
 leg
 dark
